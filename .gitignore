@@ -1,0 +1,25 @@
+# Data files
+data/raw/
+*.csv
+*.parquet
+
+# Models
+models/
+*.pth
+*.pt
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Environment
+.env
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
