@@ -139,7 +139,7 @@ Example configuration:
 
 ## 5. Baselines
 
-To understand how hard the problem is, the project includes simple baselines:
+To understand the problem better, the project includes simple baselines:
 
 ### 5.1 Last-value baseline
 
@@ -219,7 +219,7 @@ These error ranges match common traffic-forecasting benchmarks, where MAE betwee
 ### Visualizations
 
 #### Per-horizon MAE (model vs baselines)
-![MAE Bar Plot](results/models_vs_baseline.png)
+![MAE Bar Plot](results/model_vs_baseline.png)
 
 #### Node-level predictions
 
