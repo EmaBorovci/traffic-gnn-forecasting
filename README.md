@@ -174,34 +174,70 @@ Per-horizon MAE is also computed (step 1, 2, 3) to see how performance degrades 
 ---
 
 
-## 6. Results (Example)
+## 6. Results
 
-Final numbers will depend on the exact run, but typical results on the October test set are around:
+### Model Performance (GCN-GRU)
 
-- **Model (GCN-GRU):**
-  - MAE ≈ 2.5 km/h  
-  - RMSE ≈ 3.4 km/h  
-  - MAPE ≈ 15–16 %  
+**Normalized scale:**
 
-- **Last-value baseline:**
-  - MAE ≈ 1.9 km/h  
-  - RMSE ≈ 2.7 km/h  
-  - MAPE ≈ 10–11 %  
+- **Test MAE**: 0.3654  
+- **Test RMSE**: 0.4678  
+- **Test MAPE**: 191.63%
 
-- **MA(3) baseline:**
-  - Slightly worse than last-value, better than a naïve constant predictor.
-
-**Interpretation:**
-
-- The last-value baseline is very strong at the first step (20 minutes ahead).  
-- The GCN-GRU model becomes more competitive at longer horizons and provides smoother, more stable forecasts that respect the underlying spatial structure.
-
-The repository includes:
-
-- bar plots for per-horizon MAE (model vs baselines)  
-- line plots showing true vs predicted speed for individual segments  
+<sub>_(High normalized MAPE is expected because it is sensitive to very low denominators in the scaled space.)_</sub>
 
 ---
+
+**Original units (km/h):**
+
+- **MAE**: 2.534 km/h  
+- **RMSE**: 3.244 km/h  
+- **MAPE**: 14.66 %
+
+These error ranges match common traffic-forecasting benchmarks, where MAE between 2–4 km/h is typical for short-term multi-step prediction.
+
+---
+
+### Baseline Comparison
+
+**Last-value baseline:**
+
+- **MAE**: ~1.9 km/h  
+- **RMSE**: ~2.7 km/h  
+- **MAPE**: ~10–11%
+
+**MA(3) baseline:**
+
+- Slightly worse than last-value  
+- Stronger than a naïve constant predictor
+
+
+### Interpretation
+
+- Traffic exhibits high short-term persistence, so the **last-value baseline is extremely strong** for the 20-minute horizon.
+- The **GCN-GRU becomes more competitive at longer horizons**, where spatial structure and temporal patterns matter more than pure persistence.
+- The model also provides **smoother, more stable predictions** across nodes, which is an advantage in real deployments.
+
+---
+
+### Visualizations
+
+#### Per-horizon MAE (model vs baselines)
+![MAE Bar Plot](results/models_vs_baeslines.png)
+
+#### Node-level predictions
+
+Comparison of model forecasts vs true speeds over time for individual road segments (nodes).
+
+- **Sample 0 – Node 0:** Model vs actual values.
+  
+  ![Sample 0 – Node 0](results/sample0_node0.png)
+
+- **Sample 5 – Node 0:** Model vs actual, plus baselines (Last-value, MA(3)).
+
+  ![Sample 5 – Node 0](results/sample5_node0.png)
+
+
 
 ## 7. How to Run
 
