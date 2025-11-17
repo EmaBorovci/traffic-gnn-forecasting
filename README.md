@@ -1,46 +1,278 @@
-# Traffic Prediction with Graph Neural Networks
+# Traffic GNN Forecasting
 
-A Graph Neural Network approach for predicting travel times using real-time traffic and weather data.
+Traffic speed forecasting on a road network using a Graph Convolutional Network plus GRU (GCN-GRU).  
+The goal is to predict traffic speed for each road segment for the next 60 minutes (3 × 20-minute steps), using:
 
-## Project Overview
-This project implements a GNN-based traffic prediction system for urban mobility analysis. The model learns spatio-temporal patterns from traffic sensor networks and weather conditions to forecast travel times.
+- past traffic speeds
+- weather information
+- temporal features (hour/day/month)
+- the road-segment graph structure
 
-## Project Structure
-traffic_gnn/
-├── src/ # Source code
-├── data/ # Data directories
-├── notebooks/ # Analysis & experiments
-└── models/ # Trained models
+---
 
-## Getting Started
+## 1. Project Overview
+
+### Problem
+
+Given historical traffic speed and context for each road segment, forecast the speed for the next three 20-minute intervals for all segments in the network.
+
+This is a classic **spatio-temporal forecasting** problem:
+
+- **Temporal**: traffic depends on recent history and daily/weekly cycles  
+- **Spatial**: segments influence their neighbors via the road network
+
+### Approach
+
+1. Clean and integrate traffic + weather data.
+2. Construct a graph where nodes are segments and edges capture adjacency.
+3. Create sliding windows of length 12 (past 4 hours) to predict the next 3 steps (1 hour).
+4. Train a GCN-GRU model to learn spatial structure (GCN) and temporal dynamics (GRU).
+5. Compare against simple but strong baselines (last value, moving average).
+6. Evaluate on a temporally held-out month (October) to simulate real future forecasting.
+
+---
+
+## 2. Repository Structure
+
+```text
+traffic-gnn-forecasting/
+│
+├── data/
+│   ├── raw/                     # raw traffic and weather data (ignored in git)
+│   └── processed/               # cleaned parquet files and graph structures
+│       ├── traffic_weather_clean.parquet
+│       ├── traffic_weather_with_segments.parquet
+│       ├── graph_structure.pt   # edge_index and node mapping
+│       └── model_ready.pt       # optional cached tensors
+│
+├── notebooks/
+│   ├── 01_data_cleaning_and_integration.ipynb
+│   ├── 02_exploratory_data_analysis.ipynb
+│   ├── 03_dataset_preparation.ipynb
+│   └── 04_model_training.ipynb
+│
+├── src/
+│   ├── download_data.py         # optional data download helper
+│   ├── datasets.py              # PyTorch Dataset / DataLoader utilities
+│   ├── gcn_gru_model.py         # GCN-GRU architecture
+│   ├── metrics.py               # MAE/RMSE/MAPE, baselines
+│   └── plotting.py              # helper functions for plots
+│
+├── models/
+│   └── best_gcn_gru.pt          # best model checkpoint (gitignored if large)
+│
+├── environment.yml              # conda environment specification
+├── .gitignore
+└── README.md
+
+## 3. Data and Features
+
+### Source
+
+The dataset combines:
+
+- traffic speed per road segment and time
+- basic weather information
+- origin–destination segment identifiers and coordinates
+
+### Main columns (processed)
+
+- `traffic_speed` – target variable (km/h)  
+- `temperature`, `precipitation` – weather features  
+- `origin`, `destination` – segment names (text)  
+- `origin_code`, `destination_code` – encoded segment IDs  
+- `origin_lat`, `origin_lon`, `dest_lat`, `dest_lon` – coordinates  
+- `congestion_level`, `distance` – additional contextual features  
+- `hour_sin`, `hour_cos` – time-of-day encoding  
+- `dow_sin`, `dow_cos` – day-of-week encoding  
+- `month_sin`, `month_cos` – month encoding  
+
+### Sliding window formulation
+
+- Input window length: `T_in = 12` (past 4 hours)  
+- Forecast horizon: `T_out = 3` (next 60 minutes)  
+- Number of nodes (segments): `N`  
+- Number of input features per node: `F = 9` (traffic speed + engineered features)
+
+Data is transformed so that each training sample has shape:
+
+- `X: [T_in, N, F]`  
+- `Y: [T_out, N]` (predicting traffic speed only)
+
+Standardization (e.g. `StandardScaler`) is fit on the **training split only** to avoid data leakage.
+
+Time-based split (example):
+
+- Train: July–August  
+- Validation: September  
+- Test: October (completely unseen during training)
+
+## 4. Model Architecture
+
+### GCN-GRU Forecaster
+
+The core model is a custom PyTorch module:
+
+1. **GCN layer(s)**
+   - Input: node features at each time step `[..., T_in, N, F]`
+   - Uses `edge_index` from the road graph to aggregate neighbor information.
+   - Produces spatially smoothed features per node.
+
+2. **GRU layer**
+   - Processes the sequence of GCN outputs over time.
+   - Learns temporal patterns (rush hours, daily cycles, delays).
+
+3. **Output head**
+   - Fully connected layers map GRU hidden states to `T_out × N` future speed values.
+
+Example configuration:
+
+- GCN hidden dimension: 16  
+- GRU hidden dimension: 32  
+- Dropout: 0.05–0.10  
+- Loss: MAE (L1)  
+- Optimizer: Adam (lr = 1e-3)  
+- Batch size: 64  
+- Early stopping based on validation MAE with patience 10  
+
+## 5. Baselines
+
+To understand how hard the problem is, the project includes simple baselines:
+
+### 5.1 Last-value baseline
+
+For each node and horizon:
+
+- prediction = last observed speed in the input window  
+- repeated for all 3 forecast steps  
+
+This is a very strong baseline for traffic because speeds are highly persistent.
+
+### 5.2 Moving-average baseline (MA(3))
+
+For each node:
+
+- prediction = mean of the last 3 observed speeds  
+- repeated for all 3 forecast steps  
+
+### 5.3 Metrics
+
+All metrics are reported in real units (km/h):
+
+- MAE – Mean Absolute Error  
+- RMSE – Root Mean Squared Error  
+- MAPE – Mean Absolute Percentage Error (with small epsilon to avoid division by zero)  
+
+Per-horizon MAE is also computed (step 1, 2, 3) to see how performance degrades as the forecast horizon increases.
+
+## 6. Results (Example)
+
+Final numbers will depend on the exact run, but typical results on the October test set are around:
+
+- **Model (GCN-GRU):**
+  - MAE ≈ 2.5 km/h  
+  - RMSE ≈ 3.4 km/h  
+  - MAPE ≈ 15–16 %  
+
+- **Last-value baseline:**
+  - MAE ≈ 1.9 km/h  
+  - RMSE ≈ 2.7 km/h  
+  - MAPE ≈ 10–11 %  
+
+- **MA(3) baseline:**
+  - Slightly worse than last-value, better than a naïve constant predictor.
+
+**Interpretation:**
+
+- The last-value baseline is very strong at the first step (20 minutes ahead).  
+- The GCN-GRU model becomes more competitive at longer horizons and provides smoother, more stable forecasts that respect the underlying spatial structure.
+
+The repository includes:
+
+- bar plots for per-horizon MAE (model vs baselines)  
+- line plots showing true vs predicted speed for individual segments  
+
+## 7. How to Run
+
+### 7.1 Setup
+
+Clone the repository:
+
 ```bash
-# 1. Download data
-python src/download_data.py
+git clone https://github.com/EmaBorovci/traffic-gnn-forecasting.git
+cd traffic-gnn-forecasting
+Create and activate the environment:
+conda env create -f environment.yml
+conda activate traffic_gnn
+Ensure torch-geometric is installed (if not pulled in automatically):
+pip install torch-geometric
 
-# 2. Explore data (next step)
-jupyter notebook notebooks/01_eda.ipynb
+### 7.2 Run notebooks in order
 
-## Data Sources
+The main workflow is notebook-driven:
 
-### Traffic Data
-- **Source**: IntraTraffic API
-- **Features**: speed, congestion, coordinates, timestamps
+1. `01_data_cleaning_and_integration.ipynb`  
+   - Load raw traffic and weather data  
+   - Clean and merge into a unified table  
 
-### Weather Data
-- **Source**: Open-Meteo Historical API
-- **Features**: temperature, precipitation, timestamps
-- **Coordinates**: 42.6629° N, 21.1655° E
+2. `02_exploratory_data_analysis.ipynb`  
+   - Visualize distributions and time patterns  
+   - Inspect segment statistics and missing values  
 
-### Coverage
-- **Period**: March 2025 - October 2025
-- **Location**: Prishtina, Kosovo
+3. `03_dataset_preparation.ipynb`  
+   - Add time encodings  
+   - Build the graph and save `graph_structure.pt`  
+   - Create sliding windows and save model-ready tensors/parquets  
 
-## Tech Stack
-- **Python 3.10.12**
-- **PyTorch & PyTorch Geometric** - Graph Neural Networks
-- **Pandas & NumPy** - Data processing
-- **Scikit-learn** - Machine learning utilities
-- **Jupyter Notebooks** - Interactive exploration
+4. `04_model_training.ipynb`  
+   - Define the GCN-GRU model  
+   - Train with early stopping  
+   - Evaluate on validation and test splits  
+   - Compute baselines and generate plots  
 
-## Project Status
-- ** In Progress - Data collection complete, EDA phase starting
+If you later turn the code into scripts (e.g. `python src/train.py`), those commands can be added here as well.
+
+---
+
+### 8. Design Choices and Lessons
+
+```markdown
+## 8. Design Choices and Lessons
+
+- **Train-only scaling:**  
+  The scaler is fit on the training split only to prevent data leakage into validation/test.
+
+- **Temporal split by month:**  
+  Training on earlier months and testing on October simulates real deployment conditions.
+
+- **GCN + GRU vs pure GRU:**  
+  The GCN allows the model to exploit the spatial structure of the road network, which is particularly helpful during non-typical traffic patterns.
+
+- **Baselines are essential:**  
+  In traffic forecasting, simple baselines (last value, moving average) can be very strong.  
+  Beating them consistently, especially at longer horizons, is a meaningful signal that the model is learning more than pure persistence.
+
+---
+
+## 9. Possible Extensions
+
+Some natural next steps:
+
+- Try more advanced spatio-temporal architectures (STGCN, DCRNN, GraphWaveNet).  
+- Perform a full hyperparameter search (hidden sizes, number of GCN layers, dropout).  
+- Add richer exogenous variables (events, holidays, incidents).  
+- Extend from 1-hour horizon to multi-hour forecasting.  
+- Deploy as an API endpoint that takes current sensor readings and returns forecasts.  
+
+---
+
+## 10. Reproducibility
+
+To fully reproduce the project:
+
+1. Clone the repo.  
+2. Create the conda environment with `environment.yml`.  
+3. Ensure the required processed data exists under `data/processed/`.  
+4. Run the notebooks in order, or port them to scripts using the utilities in `src/`.  
+
+All core logic (model definition, baselines, metrics) is implemented in Python and can be reused outside notebooks as needed.
