@@ -23,12 +23,16 @@ This is a classic **spatio-temporal forecasting** problem:
 
 ### Approach
 
+<div style="margin-left: 20px;">
+
 1. Clean and integrate traffic + weather data.
 2. Construct a graph where nodes are segments and edges capture adjacency.
 3. Create sliding windows of length 12 (past 4 hours) to predict the next 3 steps (1 hour).
 4. Train a GCN-GRU model to learn spatial structure (GCN) and temporal dynamics (GRU).
 5. Compare against simple but strong baselines (last value, moving average).
 6. Evaluate on a temporally held-out month (October) to simulate real future forecasting.
+
+</div>
 
 ---
 
@@ -64,6 +68,8 @@ traffic-gnn-forecasting/
 ├── environment.yml              # conda environment specification
 ├── .gitignore
 └── README.md
+```
+
 
 ## 3. Data and Features
 
@@ -165,6 +171,9 @@ All metrics are reported in real units (km/h):
 
 Per-horizon MAE is also computed (step 1, 2, 3) to see how performance degrades as the forecast horizon increases.
 
+---
+
+
 ## 6. Results (Example)
 
 Final numbers will depend on the exact run, but typical results on the October test set are around:
@@ -192,6 +201,8 @@ The repository includes:
 - bar plots for per-horizon MAE (model vs baselines)  
 - line plots showing true vs predicted speed for individual segments  
 
+---
+
 ## 7. How to Run
 
 ### 7.1 Setup
@@ -201,42 +212,40 @@ Clone the repository:
 ```bash
 git clone https://github.com/EmaBorovci/traffic-gnn-forecasting.git
 cd traffic-gnn-forecasting
+```
 Create and activate the environment:
+```bash
 conda env create -f environment.yml
 conda activate traffic_gnn
+```
 Ensure torch-geometric is installed (if not pulled in automatically):
+```bash
 pip install torch-geometric
+```
+1. `01_data_cleaning_and_integration.ipynb`
 
-### 7.2 Run notebooks in order
+   - Load raw traffic and weather data – Clean and merge into a unified table
 
-The main workflow is notebook-driven:
+2. `02_exploratory_data_analysis.ipynb`
 
-1. `01_data_cleaning_and_integration.ipynb`  
-   - Load raw traffic and weather data  
-   - Clean and merge into a unified table  
-
-2. `02_exploratory_data_analysis.ipynb`  
    - Visualize distributions and time patterns  
-   - Inspect segment statistics and missing values  
+   - Inspect segment statistics and missing values
 
-3. `03_dataset_preparation.ipynb`  
+3. `03_dataset_preparation.ipynb`
+
    - Add time encodings  
    - Build the graph and save `graph_structure.pt`  
-   - Create sliding windows and save model-ready tensors/parquets  
+   - Create sliding windows and save model-ready tensors/parquets
 
-4. `04_model_training.ipynb`  
+4. `04_model_training.ipynb`
+
    - Define the GCN-GRU model  
    - Train with early stopping  
    - Evaluate on validation and test splits  
-   - Compute baselines and generate plots  
-
-If you later turn the code into scripts (e.g. `python src/train.py`), those commands can be added here as well.
+   - Compute baselines and generate plots
 
 ---
 
-### 8. Design Choices and Lessons
-
-```markdown
 ## 8. Design Choices and Lessons
 
 - **Train-only scaling:**  
@@ -248,10 +257,9 @@ If you later turn the code into scripts (e.g. `python src/train.py`), those comm
 - **GCN + GRU vs pure GRU:**  
   The GCN allows the model to exploit the spatial structure of the road network, which is particularly helpful during non-typical traffic patterns.
 
-- **Baselines are essential:**  
+- **Baselines are essential:** 
   In traffic forecasting, simple baselines (last value, moving average) can be very strong.  
   Beating them consistently, especially at longer horizons, is a meaningful signal that the model is learning more than pure persistence.
-
 ---
 
 ## 9. Possible Extensions
@@ -270,9 +278,11 @@ Some natural next steps:
 
 To fully reproduce the project:
 
-1. Clone the repo.  
-2. Create the conda environment with `environment.yml`.  
-3. Ensure the required processed data exists under `data/processed/`.  
-4. Run the notebooks in order, or port them to scripts using the utilities in `src/`.  
+    1. Clone the repo.
+    2. Create the conda environment with `environment.yml`.
+    3. Ensure the required processed data exists under `data/processed/`.
+    4. Run the notebooks in order, or port them to scripts using the utilities in `src/`.
 
 All core logic (model definition, baselines, metrics) is implemented in Python and can be reused outside notebooks as needed.
+
+
