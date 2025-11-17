@@ -278,10 +278,10 @@ Some natural next steps:
 
 To fully reproduce the project:
 
-    1. Clone the repo.
-    2. Create the conda environment with `environment.yml`.
-    3. Ensure the required processed data exists under `data/processed/`.
-    4. Run the notebooks in order, or port them to scripts using the utilities in `src/`.
+1. Clone the repo.
+2. Create the conda environment with `environment.yml`.
+3. Ensure the required processed data exists under `data/processed/`.
+4. Run the notebooks in order, or port them to scripts using the utilities in `src/`.
 
 All core logic (model definition, baselines, metrics) is implemented in Python and can be reused outside notebooks as needed.
 
