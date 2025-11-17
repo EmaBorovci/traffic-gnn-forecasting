@@ -1,0 +1,22 @@
+name: traffic_gnn
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pandas
+  - requests
+  - jupyter
+  - matplotlib
+  - seaborn
+  - pathlib
+  - pyarrow
+  - fastparquet
+  - torchvision
+  - pytorch-cuda=12.1
+  - pytorch
+  - torchaudio
+  - pip
+  - pip:
+      - torch-geometric
+
