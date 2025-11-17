@@ -57,10 +57,6 @@ traffic-gnn-forecasting/
 │
 ├── src/
 │   ├── download_data.py         # optional data download helper
-│   ├── datasets.py              # PyTorch Dataset / DataLoader utilities
-│   ├── gcn_gru_model.py         # GCN-GRU architecture
-│   ├── metrics.py               # MAE/RMSE/MAPE, baselines
-│   └── plotting.py              # helper functions for plots
 │
 ├── models/
 │   └── best_gcn_gru.pt          # best model checkpoint (gitignored if large)
@@ -223,7 +219,7 @@ These error ranges match common traffic-forecasting benchmarks, where MAE betwee
 ### Visualizations
 
 #### Per-horizon MAE (model vs baselines)
-![MAE Bar Plot](results/models_vs_baeslines.png)
+![MAE Bar Plot](results/models_vs_baseline.png)
 
 #### Node-level predictions
 
